@@ -462,12 +462,23 @@ test('SkillsSettings renderer guards the skillsDelete bridge and renders delete 
   assert.doesNotMatch(view, /handleToggleEnabled/,
     'handleToggleEnabled handler was removed');
 
-  // Accessibility — keyboard users must be able to see the delete button via
-  // focus-within (not only on hover). The wrapper div must have both
-  // group-hover:opacity-100 AND group-focus-within:opacity-100.
+  // Hover-reveal animation matches the meeting-notes pattern in
+  // MeetingDetails.tsx:696 — subtle translate-y slide-up + 160ms ease-out,
+  // visible on hover (gated by hover-capable media query) AND focus-within
+  // (for keyboard users), plus the always-visible `@media(hover:none)`
+  // fallback for touch devices (no hover state to trigger on).
+  //
+  // Note: the strict ordering in the className is `[@media(hover:hover)]:group-hover:opacity-100`
+  // BEFORE `group-focus-within:opacity-100` — we use a lookahead-free match
+  // that allows arbitrary-value-wrapped Tailwind classes between them (the
+  // `[@media(hover:hover)]:group-hover:translate-y-0` in between contains a `g`
+  // character that doesn't break the regex).
   assert.match(view,
-    /group-hover:opacity-100\s+group-focus-within:opacity-100/,
-    'delete button wrapper must reveal on focus-within (not only hover) so keyboard users can see it');
+    /group-hover:opacity-100[\s\S]{0,80}group-focus-within:opacity-100/,
+    'delete button wrapper must reveal on both hover (group-hover) and keyboard focus (group-focus-within)');
+  assert.match(view,
+    /\[@media\(hover:none\)\]:opacity-100/,
+    'delete button must be always-visible on touch devices (no hover state) — meets the same a11y baseline as MeetingDetails');
 
   // Built-ins must NOT show a delete button — the manager blocks builtin
   // deletes, so the UI shouldn't even offer the affordance.

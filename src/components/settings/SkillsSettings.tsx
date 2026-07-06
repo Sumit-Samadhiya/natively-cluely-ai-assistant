@@ -541,12 +541,15 @@ export const SkillsSettings: React.FC = () => {
                                     {/* Delete button — hidden for built-ins (the
                                         manager blocks builtin deletes anyway, so
                                         we don't even show the affordance).
-                                        `group-focus-within:` ensures keyboard
-                                        users can SEE the button when tabbing
-                                        through — without this the button
-                                        remains invisible via Tab navigation. */}
+                                        Hover-reveal pattern matches MeetingDetails.tsx
+                                        action bar (line 696): subtle 1px translate-y
+                                        slide-up on hover + 160ms ease-out reveal.
+                                        `group-focus-within` mirrors for keyboard users,
+                                        and `[@media(hover:none)]:opacity-100` makes
+                                        the button always-visible on touch devices
+                                        (no hover state to trigger on). */}
                                     {skill.source !== 'builtin' && (
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                                        <div className="flex items-center gap-1 opacity-0 translate-y-1 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0 [@media(hover:none)]:opacity-100 transition-all duration-[160ms] ease-out select-none">
                                             <button
                                                 onClick={() => handleDeleteSkill(skill.id, skill.name)}
                                                 disabled={deletingIds.has(skill.id)}
