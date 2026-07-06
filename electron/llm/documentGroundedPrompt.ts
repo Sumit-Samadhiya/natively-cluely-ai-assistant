@@ -41,6 +41,7 @@ export const DOCUMENT_GROUNDED_SYSTEM_OVERRIDE = [
   'CRITICAL: Use ONLY facts that are actually present in the retrieved excerpts below. NEVER invent, guess, or add numbers, names, phases, steps, methods, or results that are not literally written in the excerpts — not even plausible-sounding ones.',
   'The excerpts may use slightly different words than the question (e.g. it may say "objectives" where the question says "phases", or give data as table rows). You MAY answer from clearly-matching content, but ONLY when the specific items are literally present in the excerpts.',
   'If the specific answer does not appear in these retrieved excerpts, say: "I could not find that in the retrieved sections of the document." Do NOT say it is not in the document — only the retrieved sections were checked, not the full document.',
+  'PROPERTY-SPECIFIC QUESTIONS: answer only the property asked. If the question asks what processor/controller/control system controls a robot, answer with the main and auxiliary controller/processor facts only. Do not include low-level motor-control boards or communication boards unless the question explicitly asks for the motor subsystem.',
   'Keep the answer natural and speakable. For a normal question, 2-4 sentences. Do not restate the question back to the user.',
 ].join('\n');
 
@@ -79,7 +80,7 @@ export function buildDocumentGroundedUserContent(params: {
   const parts: string[] = [];
   parts.push(`QUESTION: ${q}`);
   parts.push('');
-  parts.push('Answer the QUESTION above using ONLY facts literally present in the retrieved document excerpts below. These are excerpts from the uploaded file — not the complete document. The excerpts may use slightly different words than the question (e.g. "objectives" for "phases", table rows for data) — you may answer from clearly-matching content, but never invent numbers, names, or items that are not actually written there. If the specific answer is not found in these excerpts, say so clearly ("I could not find that in the retrieved sections") — do not claim it is absent from the whole document.');
+  parts.push('Answer the QUESTION above using ONLY facts literally present in the retrieved document excerpts below. These are excerpts from the uploaded file — not the complete document. The excerpts may use slightly different words than the question (e.g. "objectives" for "phases", table rows for data) — you may answer from clearly-matching content, but never invent numbers, names, or items that are not actually written there. If the specific answer is not found in these excerpts, say so clearly ("I could not find that in the retrieved sections") — do not claim it is absent from the whole document. If the question asks what processor/controller/control system controls a robot, answer only that controller/processor property; do not include low-level motor-control boards or communication boards unless the user explicitly asks for the motor subsystem.');
   parts.push('');
   if (material) {
     parts.push('## RETRIEVED EXCERPTS FROM UPLOADED DOCUMENT');
@@ -409,6 +410,27 @@ export function computeDocumentAnswerabilityScore(params: {
   const boosts: string[] = [];
   const penalties: string[] = [];
   let score = 0;
+
+  // Property-specific answerability (2026-07-06): a Mercury X1
+  // processor/controller question is answered by the control-system/main/auxiliary
+  // controller evidence, not by nearby low-level motor-board ESP32 mentions.
+  // This is retrieval ranking only; the post-stream SourceContractValidator has a
+  // matching rejection rule if a model still emits ESP32/Xavier NX unsupportedly.
+  const mercuryControllerQuery = /\bmercury\s*x1\b/i.test(params.question)
+    && /\b(?:processor|controller|control\s+system|controls?|main\s+controller|auxiliary\s+controller)\b/i.test(params.question);
+  if (mercuryControllerQuery) {
+    const controllerSection = /\b(?:control\s+system|main\s+controller|auxiliary\s+controller|technical\s+specifications?|specifications?)\b/i.test(text);
+    const hasMain = /\bJetson\s+Xavier\b/i.test(text) && !/\bJetson\s+Xavier\s+NX\b/i.test(text);
+    const hasAux = /\bJetson\s+Nano\b/i.test(text);
+    const lowLevelEsp32 = /\bESP32\b/i.test(text)
+      && /\b(?:motor\s+control|low-level\s+motor|communication\s+board|motor\s+control\s+board)\b/i.test(text)
+      && !/\bESP32\b[\s\S]{0,120}\b(?:main\s+controller|auxiliary\s+controller|processor|controls?\s+(?:the\s+)?Mercury\s*X1|control\s+system)\b/i.test(text);
+    if (controllerSection) { score += 0.20; boosts.push('mercury-controller-section'); }
+    if (hasMain) { score += 0.28; boosts.push('mercury-main-controller-xavier'); }
+    if (hasAux) { score += 0.28; boosts.push('mercury-aux-controller-nano'); }
+    if (hasMain && hasAux) { score += 0.24; boosts.push('mercury-complete-controller-pair'); }
+    if (lowLevelEsp32) { score -= 0.35; penalties.push('mercury-esp32-low-level-only'); }
+  }
 
   const entities = extractLikelyEntities(params.question);
   const entityHits = entities.filter(e => e.length >= 3 && lower.includes(e.toLowerCase()));

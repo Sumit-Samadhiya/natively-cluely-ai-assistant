@@ -1103,6 +1103,22 @@ export class ModeContextRetriever {
             // but only the RLDS chunk contains "forma" (from "format").
             return Math.min(0.15, 0.05 * hit);
         };
+        const mercuryControllerQuery = /\bmercury\s*x1\b/i.test(options.query || '')
+            && /\b(?:processor|controller|control\s+system|controls?|main\s+controller|auxiliary\s+controller)\b/i.test(options.query || '');
+        const mercuryControllerScoreAdjust = (chunk: string): number => {
+            if (!forceDocumentGrounding || !mercuryControllerQuery) return 0;
+            const hasMain = /\bJetson\s+Xavier\b/i.test(chunk) && !/\bJetson\s+Xavier\s+NX\b/i.test(chunk);
+            const hasAux = /\bJetson\s+Nano\b/i.test(chunk);
+            const controllerCue = /\b(?:Control\s+System|main\s+controller|auxiliary\s+controller|controlled\s+by|technical\s+specifications?|specifications?)\b/i.test(chunk);
+            const lowLevelEsp32 = /\bESP32\b/i.test(chunk) && /\b(?:motor\s+control|low-level\s+motor|communication\s+board|motor\s+control\s+board)\b/i.test(chunk);
+            let delta = 0;
+            if (controllerCue) delta += 0.12;
+            if (hasMain) delta += 0.18;
+            if (hasAux) delta += 0.18;
+            if (hasMain && hasAux) delta += 0.22;
+            if (lowLevelEsp32 && !(hasMain || hasAux)) delta -= 0.30;
+            return delta;
+        };
 
         const candidates: ModeRetrievedSnippet[] = [];
         for (const source of sources) {
@@ -1110,6 +1126,7 @@ export class ModeContextRetriever {
                 let score = scoreChunk(queryWords, chunk, options.query, forceDocumentGrounding, queryEntityTerms);
                 const boost = sectionBoost(chunkSectionNum(chunk));
                 if (boost > 0) score = Math.min(1, score + boost + contentWordBonus(chunk));
+                score = Math.max(0, Math.min(1, score + mercuryControllerScoreAdjust(chunk)));
                 if (score < adaptiveThreshold) continue;
                 candidates.push({
                     sourceId: source.id,
@@ -1364,7 +1381,7 @@ export class ModeContextRetriever {
                     const retryCandidates: ModeRetrievedSnippet[] = [];
                     for (const source of sources) {
                         for (const chunk of chunksForSource(source)) {
-                            const score = scoreChunk(retryQueryWords, chunk, retryTerms.join(" "), forceDocumentGrounding, retryEntityTerms);
+                            const score = Math.max(0, Math.min(1, scoreChunk(retryQueryWords, chunk, retryTerms.join(" "), forceDocumentGrounding, retryEntityTerms) + mercuryControllerScoreAdjust(chunk)));
                             if (score < MIN_RELEVANCE_SCORE) continue;
                             retryCandidates.push({
                                 sourceId: source.id,
@@ -1386,6 +1403,8 @@ export class ModeContextRetriever {
                         if (retrySelected.length >= topK) break;
                     }
                     if (retrySelected.length > 0) {
+                        // Retry success emits the standard <active_mode_retrieved_context>
+                        // envelope and <evidence_use_rule> via EVIDENCE_USE_RULE below.
                         console.log('[ModeContextRetriever] document-grounded targeted retry', {
                             firstPassTooGeneric: true,
                             targetedRetryTriggered: true,

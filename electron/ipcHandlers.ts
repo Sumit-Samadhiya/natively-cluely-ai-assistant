@@ -1951,17 +1951,9 @@ export function initializeIpcHandlers(appState: AppState): void {
               const _docGroundedBlocksRepair = manualActiveMode?.documentGroundedCustomModeActive;
               const critical = profileAvailable
                 && answerPlan.profileContextPolicy === 'required'
-                // Custom-Mode Source Isolation (2026-07-06, hardening/v2.7.0): the
-                // profile repair path injects `activeResume` / `activeJD` into the
-                // repair prompt via `processQuestion().contextBlock` (line ~1897)
-                // or `JSON.stringify(activeResume)`. For a document-grounded custom
-                // mode the original stream was strictly doc-grounded (no profile
-                // facts), so re-injecting them here would let a profile fact slip
-                // into the regen answer even though the contract forbids it. The
-                // `profileContextPolicy === 'required'` branch can fire for
-                // `project_answer` / `project_about_answer` that the doc-grounded
-                // planner rewrite hasn't demoted, so we explicitly add this gate.
-                // Same fix mirrored at entry #36 (line ~1894-1898 repair facts).
+                // Custom-Mode Source Isolation (2026-07-06, hardening/v2.7.0):
+                // skip profile repair for doc-grounded modes — re-injecting
+                // activeResume/activeJD would contradict the contract.
                 && !_docGroundedBlocksRepair
                 && profileValidation.violations.find(v => v.severity === 'error' && CRITICAL_CODES.has(v.code));
               if (_docGroundedBlocksRepair && profileAvailable && answerPlan.profileContextPolicy === 'required' && isIntelligenceFlagEnabled('trace')) {
