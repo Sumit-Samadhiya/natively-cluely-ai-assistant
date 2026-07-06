@@ -607,31 +607,14 @@ export const SkillsSettings: React.FC = () => {
                                     delete slot. The pill's slot never
                                     moves regardless of `skill.source`. */}
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <span
-                                        className={[
-                                            // Fixed minimum width + text-left so both
-                                            // "Built-in" (8 chars) and "Local" (5 chars)
-                                            // start at the SAME left x-coordinate and
-                                            // end at the SAME right edge of the badge
-                                            // slot — anchoring the visible text to its
-                                            // LEFT edge eliminates the visual "shift"
-                                            // caused by differing text lengths.
-                                            'shrink-0 w-12 text-left text-[11px] font-medium',
-                                            skill.source === 'builtin'
-                                                ? 'text-green-500'
-                                                : 'text-blue-500',
-                                        ].join(' ')}
-                                    >
-                                        {skill.source === 'builtin' ? 'Built-in' : 'Local'}
-                                    </span>
                                     {/* Delete affordance wrapper — ALWAYS rendered
                                         (even for built-ins where the actual button
                                         content is omitted) and reserved at
                                         `minWidth: 60px` matching the trash icon's
-                                        natural box. This gives every row the same
-                                        right-edge anchor so the badge anchored to
-                                        its left sits at the same x-coordinate across
-                                        Built-in and Local rows.
+                                        natural box. Sits FIRST in the right cluster
+                                        so the badge can anchor immediately to its
+                                        right (user request: 'just next to the delete
+                                        button').
 
                                         Two visual states (user-installed rows only):
                                         STATE A (default): single trash icon,
@@ -695,6 +678,24 @@ export const SkillsSettings: React.FC = () => {
                                             )
                                         )}
                                     </div>
+                                    <span
+                                        className={[
+                                            // Badge sits immediately to the right of
+                                            // the delete wrapper (user request: 'just
+                                            // next to the delete button'). Fixed 48px
+                                            // width with text-left so both 'Built-in'
+                                            // (8 chars) and 'Local' (5 chars) start at
+                                            // the same x-coordinate regardless of text
+                                            // length. Anchored to the row's right edge
+                                            // because the wrapper always reserves 60px.
+                                            'shrink-0 w-12 text-left text-[11px] font-medium',
+                                            skill.source === 'builtin'
+                                                ? 'text-green-500'
+                                                : 'text-blue-500',
+                                        ].join(' ')}
+                                    >
+                                        {skill.source === 'builtin' ? 'Built-in' : 'Local'}
+                                    </span>
                                 </div>
                             </div>
                             {skill.description && (
