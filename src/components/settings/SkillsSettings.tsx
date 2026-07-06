@@ -609,7 +609,14 @@ export const SkillsSettings: React.FC = () => {
                                 <div className="flex items-center gap-2 shrink-0">
                                     <span
                                         className={[
-                                            'shrink-0 text-[11px] font-medium',
+                                            // Fixed minimum width + text-left so both
+                                            // "Built-in" (8 chars) and "Local" (5 chars)
+                                            // start at the SAME left x-coordinate and
+                                            // end at the SAME right edge of the badge
+                                            // slot — anchoring the visible text to its
+                                            // LEFT edge eliminates the visual "shift"
+                                            // caused by differing text lengths.
+                                            'shrink-0 w-12 text-left text-[11px] font-medium',
                                             skill.source === 'builtin'
                                                 ? 'text-green-500'
                                                 : 'text-blue-500',
@@ -617,68 +624,77 @@ export const SkillsSettings: React.FC = () => {
                                     >
                                         {skill.source === 'builtin' ? 'Built-in' : 'Local'}
                                     </span>
-                                    {/* Delete affordance — two visual states.
-                                        STATE A (default): single trash icon, hidden
-                                        until hover/focus-within — matches the
-                                        MeetingDetails.tsx:696 idiom. Built-ins do
-                                        not render this at all (the manager would
-                                        refuse the delete, so we don't even tease
-                                        the affordance).
+                                    {/* Delete affordance wrapper — ALWAYS rendered
+                                        (even for built-ins where the actual button
+                                        content is omitted) and reserved at
+                                        `minWidth: 60px` matching the trash icon's
+                                        natural box. This gives every row the same
+                                        right-edge anchor so the badge anchored to
+                                        its left sits at the same x-coordinate across
+                                        Built-in and Local rows.
+
+                                        Two visual states (user-installed rows only):
+                                        STATE A (default): single trash icon,
+                                        opacity-0 until hover/focus-within — matches
+                                        the MeetingDetails.tsx:696 idiom.
                                         STATE B (inline confirm, after first click):
                                         two text-labeled buttons replace the trash
                                         icon — a ghost "Cancel" and a red "Delete" —
                                         so the destructive action is unambiguous
                                         AND visible without requiring hover again.
-                                        Both states share the `group` parent for
-                                        hover-reveal, but STATE B is *always
-                                        visible* (no opacity-0) because the user
-                                        has already clicked once and is now
-                                        deciding. The aria-live="polite" on
-                                        STATE B lets screen readers announce the
-                                        confirm option. Escape cancels (handled
-                                        in the keydown effect above). 6s timeout
-                                        reverts to STATE A if no decision. */}
-                                    {skill.source !== 'builtin' && (
-                                        confirmingId === skill.id ? (
-                                            <div
-                                                role="group"
-                                                aria-live="polite"
-                                                aria-label={`Confirm delete ${skill.name}`}
-                                                className="flex items-center gap-2 select-none"
-                                            >
-                                                <span className="text-[11px] text-text-secondary hidden sm:inline">
-                                                    Delete <span className="font-medium text-text-primary">{skill.name}</span>?
-                                                </span>
-                                                <button
-                                                    onClick={() => setConfirmingId(null)}
-                                                    className="px-2.5 py-1 rounded-md border border-border-subtle bg-bg-input text-text-secondary text-[11px] font-medium hover:bg-bg-elevated hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-muted transition-colors"
-                                                    title="Cancel (Escape)"
+                                        STATE B is *always* visible (no opacity-0)
+                                        because the user has already committed. The
+                                        aria-live="polite" on STATE B lets screen
+                                        readers announce the confirm option. Escape
+                                        cancels (handled in the keydown effect
+                                        above). 6s timeout reverts to STATE A if no
+                                        decision. */}
+                                    <div
+                                        className="flex items-center gap-1 shrink-0 justify-end"
+                                        style={{ minWidth: '60px' }}
+                                    >
+                                        {skill.source !== 'builtin' && (
+                                            confirmingId === skill.id ? (
+                                                <div
+                                                    role="group"
+                                                    aria-live="polite"
+                                                    aria-label={`Confirm delete ${skill.name}`}
+                                                    className="flex items-center gap-2 select-none"
                                                 >
-                                                    Cancel
-                                                </button>
-                                                <button
-                                                    onClick={() => commitDeleteSkill(skill.id, skill.name)}
-                                                    disabled={deletingIds.has(skill.id)}
-                                                    className="px-2.5 py-1 rounded-md bg-red-500 text-white text-[11px] font-semibold hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                                                    title="Delete this skill"
-                                                >
-                                                    {deletingIds.has(skill.id) ? 'Deleting…' : 'Delete'}
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-1 opacity-0 translate-y-1 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0 [@media(hover:none)]:opacity-100 transition-all duration-[160ms] ease-out select-none">
-                                                <button
-                                                    onClick={() => requestDeleteSkill(skill.id)}
-                                                    disabled={deletingIds.has(skill.id)}
-                                                    className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                                                    title="Delete skill"
-                                                    aria-label={`Delete ${skill.name}`}
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        )
-                                    )}
+                                                    <span className="text-[11px] text-text-secondary hidden sm:inline">
+                                                        Delete <span className="font-medium text-text-primary">{skill.name}</span>?
+                                                    </span>
+                                                    <button
+                                                        onClick={() => setConfirmingId(null)}
+                                                        className="px-2.5 py-1 rounded-md border border-border-subtle bg-bg-input text-text-secondary text-[11px] font-medium hover:bg-bg-elevated hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-border-muted transition-colors"
+                                                        title="Cancel (Escape)"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        onClick={() => commitDeleteSkill(skill.id, skill.name)}
+                                                        disabled={deletingIds.has(skill.id)}
+                                                        className="px-2.5 py-1 rounded-md bg-red-500 text-white text-[11px] font-semibold hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                                        title="Delete this skill"
+                                                    >
+                                                        {deletingIds.has(skill.id) ? 'Deleting…' : 'Delete'}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1 opacity-0 translate-y-1 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0 [@media(hover:none)]:opacity-100 transition-all duration-[160ms] ease-out select-none">
+                                                    <button
+                                                        onClick={() => requestDeleteSkill(skill.id)}
+                                                        disabled={deletingIds.has(skill.id)}
+                                                        className="p-1.5 rounded-lg text-text-secondary hover:text-red-400 hover:bg-red-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                                        title="Delete skill"
+                                                        aria-label={`Delete ${skill.name}`}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            )
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             {skill.description && (
