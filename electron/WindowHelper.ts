@@ -29,7 +29,7 @@ function traceOverlayResize(event: string, data: Record<string, unknown>): void 
 }
 
 const startUrl = isDev
-  ? 'http://localhost:5180'
+  ? process.env.VITE_DEV_SERVER_URL || 'http://localhost:5180'
   : `file://${path.join(__dirname, '../../dist/index.html')}`;
 
 export class WindowHelper {
